@@ -1,25 +1,19 @@
-#include<cstdlib>
+#include<cstddef>
 #include<stdexcept>
 #include<initializer_list>
 #include<vector>
-template <typename T,size_t Size>
+template <typename T>
 class fenwick{
 	private:
-		T tr[Size+1];
+		std::vector<T>tr;
+		size_t Size;
 	public:
-		fenwick()
-		{
-			for(size_t i=0;i<=Size;++i)
-			{
-				tr[i]=T();
-			}
-		}
+		fenwick():Size(0),tr(1,T()){}
 		void clear()
 		{
-			for(size_t i=0;i<=Size;++i)
-			{
-				tr[i]=T();
-			}
+			tr.clear();
+			tr.push_back(T());
+			Size=0;
 		}
 		void update(size_t p,T val)
 		{
@@ -32,61 +26,36 @@ class fenwick{
 				tr[i]=tr[i]+val;
 			}
 		}
-		fenwick(std::initializer_list<T> a)
+		fenwick(std::initializer_list<T> a):tr(a.size()+1,T()),Size(a.size())
 		{
-			clear();
 			size_t i=1;
 			for(const auto& v:a)
 			{
-				if(i>Size)
-				{
-					break;
-				}
 				update(i,v);
-				++i;
 			}
 		}
-		fenwick(T a)
+		explicit fenwick(size_t n):tr(n+1,T()),Size(n){}
+		fenwick(size_t n,T a):tr(n+1,T()),Size(n)
 		{
-			clear();
 			for(size_t i=1;i<=Size;++i)
 			{
 				update(i,a);
 			}
 		}
-		fenwick(const T a[])
+		template<size_t N>
+		fenwick(const T (&a)[N]):tr(N+1,T()),Size(N)
 		{
-			clear();
 			for(size_t i=0;i<Size;++i)
 			{
 				update(i+1,a[i]);
 			}
 		}
-		fenwick(const std::vector<T> &a)
+		fenwick(const std::vector<T> &a):tr(a.size()+1,T()),Size(a.size())
 		{
-			clear();
-			size_t n=std::min(a.size(),Size);
-			for(size_t i=0;i<n;++i)
+			for(size_t i=0;i<Size;++i)
 			{
 				update(i+1,a[i]);
 			}
-		}
-		T query_point(size_t x) const
-		{
-			if(x>Size)
-			{
-				throw std::out_of_range("Index out of range");
-			}
-			if(x==0)
-			{
-				return T();
-			}
-			T ans=tr[x];
-			for(size_t i=x-1;i>x-(x&-x);i-=(i&-i))
-			{
-				ans-=tr[i];
-			}
-			return ans;
 		}
 		T query_prefix(size_t x) const
 		{
@@ -120,6 +89,18 @@ class fenwick{
 			}
 			return query_prefix(r)-query_prefix(l-1);
 		}
+		T query_point(size_t x) const
+		{
+			if(x>Size)
+			{
+				throw std::out_of_range("Index out of range");
+			}
+			if(x==0)
+			{
+				return T();
+			}
+			return query_range(x,x);
+		}
 		void set(size_t p,T val)
 		{
 			if(p>Size||p<1)
@@ -131,12 +112,67 @@ class fenwick{
 			{
 				return;
 			}
-			for(size_t i=p;i<=Size;i+=(i&-i))
+			update(p,val-now);
+		}
+		std::vector<T> to_vector() const
+		{
+			std::vector<T>arr;
+			for(size_t i=1;i<=Size;++i)
 			{
-				tr[i]=tr[i]-now+val;
+				arr.push_back(query_point(i));
+			}
+			return arr;
+		}
+		void resize(size_t newsize)
+		{
+			if(newsize==Size)
+			{
+				return;
+			}
+			if(newsize==0)
+			{
+				*this=fenwick();
+				return;
+			}
+			std::vector<T>old=to_vector();
+			Size=newsize;
+			tr.assign(Size+1,T());
+			for(size_t i=0;i<old.size()&&i<Size;++i)
+			{
+				update(i+1,old[i]);
 			}
 		}
-		size_t lower_bound(T tar)
+		void resize(size_t newsize,T val)
+		{
+			if(newsize==Size)
+			{
+				for(size_t i=1;i<=Size;++i)
+				{
+					set(i,val);
+				}
+				return;
+			}
+			if(newsize==0)
+			{
+				*this=fenwick();
+				return;
+			}
+			std::vector<T>old=to_vector();
+			Size=newsize;
+			tr.assign(Size+1,T());
+			for(size_t i=0;i<Size;++i)
+			{
+				if(i<old.size())
+				{
+					update(i+1,old[i]);
+				}
+				else
+				{
+					update(i+1,val);
+				}
+			}
+		}
+		size_t lower_bound(T tar) const
 		{
 			if(Size==0)
 			{
@@ -163,12 +199,20 @@ class fenwick{
 			}
 			return pos+1;
 		}
-		constexpr size_t size() const
+		bool empty() const
+		{
+			return Size==0;
+		}
+		size_t size() const
 		{
 			return Size;
 		}
 		bool operator == (const fenwick& other) const
 		{
+			if(Size!=other.size())
+			{
+				return false;
+			}
 			for(size_t i=1;i<=Size;++i)
 			{
 				if(tr[i]!=other.tr[i])
@@ -181,5 +225,14 @@ class fenwick{
 		bool operator != (const fenwick& other) const
 		{
 			return !(*this==other);
+		}
+		fenwick& operator = (const fenwick& other)
+		{
+			if(this!=other)
+			{
+				tr=other.tr;
+				Size=other.Size;
+			}
+   			return *this;
 		}
 };
